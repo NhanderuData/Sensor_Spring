@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Monitor de Sensores — ADS1242</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Roboto:wght@300;400;500;700;900&display=swap"
+    rel="stylesheet" />
+
+  <style>
+    /* ── Reset & Variables ───────────────────────────────────── */
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #f8f9fa;
+      --surface: #ffffff;
+      --panel: #ffffff;
+      --border: #dadce0;
+      --accent: #1a73e8;
+      /* Google Blue */
+      --accent2: #ea4335;
+      /* Google Red */
+      --accent3: #34a853;
+      /* Google Green */
+      --warn: #fbbc05;
+      /* Google Yellow */
+      --danger: #d93025;
+      /* Google Danger Red */
+      --text: #202124;
+      --muted: #5f6368;
+      --font-mono: 'Share Tech Mono', monospace;
+      --font-body: 'Roboto', sans-serif;
+    }
+
+    html,
+    body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      overflow-x: hidden;
+    }
+
+    /* ── Soft radial background gradient ─────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(26, 115, 232, .03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(26, 115, 232, .03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0) 0%, rgba(0, 0, 0, 0.02) 100%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Layout ──────────────────────────────────────────────── */
+    .wrapper {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 0 24px 40px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* ── Header ──────────────────────────────────────────────── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 28px 0 32px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 40px;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .header-left {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .sys-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: .2em;
+      color: var(--accent);
+      text-transform: uppercase;
+      opacity: .8;
+    }
+
+    h1 {
+      font-size: clamp(22px, 4vw, 36px);
+      font-weight: 900;
+      letter-spacing: -.02em;
+      color: var(--text);
+      line-height: 1;
+    }
+
+    h1 span {
+      color: var(--accent);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    /* ── Connection badge ────────────────────────────────────── */
+    #conn-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 18px;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: var(--panel);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      transition: all .3s;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    #conn-badge.connecting {
+      color: var(--warn);
+      border-color: var(--warn);
+      background: #fef7e0;
+    }
+
+    #conn-badge.connected {
+      color: var(--accent3);
+      border-color: var(--accent3);
+      background: #e6f4ea;
+    }
+
+    #conn-badge.error {
+      color: var(--danger);
+      border-color: var(--danger);
+      background: #fce8e6;
+    }
+
+    .badge-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+      flex-shrink: 0;
+    }
+
+    .connected .badge-dot {
+      animation: pulse-dot 1.4s ease-in-out infinite;
+    }
+
+    .connecting .badge-dot {
+      animation: blink .8s ease-in-out infinite;
+    }
+
+    @keyframes pulse-dot {
+
+      0%,
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      50% {
+        opacity: .4;
+        transform: scale(.7);
+      }
+    }
+
+    @keyframes blink {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: .2;
+      }
+    }
+
+    /* ── Clock ───────────────────────────────────────────────── */
+    #clock {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--muted);
+      min-width: 72px;
+      text-align: right;
+    }
+
+    /* ── Stats bar ───────────────────────────────────────────── */
+    .stats-bar {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+
+    .stat-item {
+      flex: 1;
+      padding: 14px 20px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      transition: all 0.2s ease;
+    }
+
+    .stat-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+      border-color: var(--accent);
+    }
+
+    .stat-label {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .stat-value {
+      font-family: var(--font-mono);
+      font-size: 22px;
+      color: var(--accent);
+      font-weight: 400;
+    }
+
+    /* ── Cards grid ──────────────────────────────────────────── */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 16px;
+      margin-bottom: 40px;
+    }
+
+    /* ── Sensor card ─────────────────────────────────────────── */
+    .sensor-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.05);
+    }
+
+    .sensor-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08), 0 3px 6px rgba(0, 0, 0, 0.04);
+      border-color: var(--card-accent);
+    }
+
+    .sensor-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: var(--card-accent);
+      opacity: 0.15;
+      transition: opacity .3s;
+    }
+
+    .sensor-card.updating::before {
+      opacity: 1;
+      animation: scan-line .4s ease-out;
+    }
+
+    @keyframes scan-line {
+      from {
+        transform: scaleX(0);
+        opacity: 1;
+      }
+
+      to {
+        transform: scaleX(1);
+        opacity: 0.15;
+      }
+    }
+
+    .sensor-card[data-sensor="sala"] {
+      --card-accent: var(--accent);
+    }
+
+    .sensor-card[data-sensor="server"] {
+      --card-accent: var(--accent2);
+    }
+
+    .sensor-card[data-sensor="externo"] {
+      --card-accent: var(--accent3);
+    }
+
+    .sensor-card.updating {
+      border-color: var(--card-accent);
+    }
+
+    /* Card corner decoration */
+    .card-corner {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 12px;
+      height: 12px;
+      border-top: 2px solid var(--card-accent);
+      border-right: 2px solid var(--card-accent);
+      opacity: .3;
+      border-radius: 0 4px 0 0;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .sensor-id {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: .25em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .sensor-name {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -.01em;
+    }
+
+    .sensor-icon {
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      background: var(--bg);
+      flex-shrink: 0;
+    }
+
+    /* ── Temperature display ─────────────────────────────────── */
+    .temp-display {
+      margin-bottom: 20px;
+    }
+
+    .temp-value {
+      font-family: var(--font-mono);
+      font-size: clamp(52px, 8vw, 72px);
+      font-weight: 400;
+      color: var(--card-accent);
+      line-height: 1;
+      letter-spacing: -.03em;
+      transition: color .3s;
+      text-shadow: 0 2px 10px color-mix(in srgb, var(--card-accent) 15%, transparent);
+    }
+
+    .temp-unit {
+      font-family: var(--font-mono);
+      font-size: 20px;
+      color: var(--muted);
+      margin-left: 4px;
+    }
+
+    /* ── Mini sparkline ──────────────────────────────────────── */
+    .sparkline-container {
+      margin-bottom: 20px;
+      height: 40px;
+      position: relative;
+    }
+
+    .sparkline {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ── Card footer ─────────────────────────────────────────── */
+    .card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .footer-label {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .footer-value {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text);
+    }
+
+    /* Min/Max row */
+    .minmax-row {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+
+    .minmax-item {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .minmax-label {
+      font-family: var(--font-mono);
+      font-size: 8px;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .minmax-value {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    /* ── Alert bar ───────────────────────────────────────────── */
+    .alert-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 20px;
+      background: #fce8e6;
+      border: 1px solid #fad2cf;
+      border-radius: 8px;
+      margin-bottom: 24px;
+      font-family: var(--font-body);
+      font-size: 13px;
+      color: #c5221f;
+      display: none;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .alert-bar.visible {
+      display: flex;
+    }
+
+    .alert-icon {
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    /* ── Log terminal ────────────────────────────────────────── */
+    .terminal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .terminal-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 20px;
+      background: #f1f3f4;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .terminal-dots {
+      display: flex;
+      gap: 6px;
+    }
+
+    .terminal-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .dot-r {
+      background: #ea4335;
+    }
+
+    .dot-y {
+      background: #fbbc05;
+    }
+
+    .dot-g {
+      background: #34a853;
+    }
+
+    .terminal-title {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .terminal-body {
+      padding: 16px;
+      height: 160px;
+      overflow-y: auto;
+      scroll-behavior: smooth;
+    }
+
+    .terminal-body::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .terminal-body::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .terminal-body::-webkit-scrollbar-thumb {
+      background: #dadce0;
+      border-radius: 4px;
+    }
+
+    .log-line {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      line-height: 1.8;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      animation: fade-in .2s ease;
+    }
+
+    @keyframes fade-in {
+      from {
+        opacity: 0;
+        transform: translateY(4px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .log-time {
+      color: var(--muted);
+      margin-right: 10px;
+    }
+
+    .log-tag {
+      margin-right: 8px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 10px;
+    }
+
+    .tag-sala {
+      background: rgba(26, 115, 232, 0.1);
+      color: var(--accent);
+    }
+
+    .tag-server {
+      background: rgba(234, 67, 53, 0.1);
+      color: var(--accent2);
+    }
+
+    .tag-ext {
+      background: rgba(52, 168, 83, 0.1);
+      color: var(--accent3);
+    }
+
+    .tag-sys {
+      background: rgba(95, 99, 104, 0.1);
+      color: var(--muted);
+    }
+
+    /* ── Responsive ──────────────────────────────────────────── */
+    @media (max-width: 640px) {
+      .stats-bar {
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .stat-item {
+        border-radius: 8px !important;
+      }
+
+      header {
+        gap: 12px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrapper">
+
+    <!-- Header -->
+    <header>
+      <div class="header-left">
+        <span class="sys-label">ADS1242 &mdash; Mensageria &amp; Streams &mdash; PUC Goiás</span>
+        <h1>SENSOR <span>MONITOR</span></h1>
+      </div>
+      <div class="header-right">
+        <div id="clock">--:--:--</div>
+        <div id="conn-badge" class="connecting">
+          <span class="badge-dot"></span>
+          <span id="conn-text">CONECTANDO</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Alert bar (alta temperatura) -->
+    <div id="alert-bar" class="alert-bar">
+      <span class="alert-icon">⚠</span>
+      <span id="alert-msg">Temperatura elevada detectada</span>
+    </div>
+
+    <!-- Stats bar -->
+    <div class="stats-bar">
+      <div class="stat-item">
+        <span class="stat-label">Eventos Recebidos</span>
+        <span class="stat-value" id="stat-eventos">0</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Taxa (ev/min)</span>
+        <span class="stat-value" id="stat-taxa">—</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Sensores Ativos</span>
+        <span class="stat-value" id="stat-sensores">0</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Reconexões</span>
+        <span class="stat-value" id="stat-reconexoes">0</span>
+      </div>
+    </div>
+
+    <!-- Sensor cards -->
+    <div class="cards-grid">
+      <div class="sensor-card" data-sensor="sala" id="card-sala">
+        <div class="card-corner"></div>
+        <div class="card-header">
+          <div>
+            <div class="sensor-id">SNS-001</div>
+            <div class="sensor-name">Sala</div>
+          </div>
+          <div class="sensor-icon">🏠</div>
+        </div>
+        <div class="temp-display">
+          <span class="temp-value" id="temp-sala">--.-</span><span class="temp-unit">°C</span>
+        </div>
+        <div class="minmax-row">
+          <div class="minmax-item">
+            <span class="minmax-label">Mín</span>
+            <span class="minmax-value" id="min-sala">--.-</span>
+          </div>
+          <div class="minmax-item">
+            <span class="minmax-label">Máx</span>
+            <span class="minmax-value" id="max-sala">--.-</span>
+          </div>
+          <div class="minmax-item">
+            <span class="minmax-label">Média</span>
+            <span class="minmax-value" id="avg-sala">--.-</span>
+          </div>
+        </div>
+        <div class="sparkline-container">
+          <svg class="sparkline" id="spark-sala" viewBox="0 0 200 40" preserveAspectRatio="none"></svg>
+        </div>
+        <div class="card-footer">
+          <div>
+            <div class="footer-label">Última Leitura</div>
+            <div class="footer-value" id="ts-sala">—</div>
+          </div>
+          <div>
+            <div class="footer-label">Total</div>
+            <div class="footer-value" id="count-sala">0 leituras</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sensor-card" data-sensor="server" id="card-server">
+        <div class="card-corner"></div>
+        <div class="card-header">
+          <div>
+            <div class="sensor-id">SNS-002</div>
+            <div class="sensor-name">Server</div>
+          </div>
+          <div class="sensor-icon">🖥️</div>
+        </div>
+        <div class="temp-display">
+          <span class="temp-value" id="temp-server">--.-</span><span class="temp-unit">°C</span>
+        </div>
+        <div class="minmax-row">
+          <div class="minmax-item">
+            <span class="minmax-label">Mín</span>
+            <span class="minmax-value" id="min-server">--.-</span>
+          </div>
+          <div class="minmax-item">
+            <span class="minmax-label">Máx</span>
+            <span class="minmax-value" id="max-server">--.-</span>
+          </div>
+          <div class="minmax-item">
+            <span class="minmax-label">Média</span>
+            <span class="minmax-value" id="avg-server">--.-</span>
+          </div>
+        </div>
+        <div class="sparkline-container">
+          <svg class="sparkline" id="spark-server" viewBox="0 0 200 40" preserveAspectRatio="none"></svg>
+        </div>
+        <div class="card-footer">
+          <div>
+            <div class="footer-label">Última Leitura</div>
+            <div class="footer-value" id="ts-server">—</div>
+          </div>
+          <div>
+            <div class="footer-label">Total</div>
+            <div class="footer-value" id="count-server">0 leituras</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sensor-card" data-sensor="externo" id="card-externo">
+        <div class="card-corner"></div>
+        <div class="card-header">
+          <div>
+            <div class="sensor-id">SNS-003</div>
+            <div class="sensor-name">Externo</div>
+          </div>
+          <div class="sensor-icon">🌡️</div>
+        </div>
+        <div class="temp-display">
+          <span class="temp-value" id="temp-externo">--.-</span><span class="temp-unit">°C</span>
+        </div>
+        <div class="minmax-row">
+          <div class="minmax-item">
+            <span class="minmax-label">Mín</span>
+            <span class="minmax-value" id="min-externo">--.-</span>
+          </div>
+          <div class="minmax-item">
+            <span class="minmax-label">Máx</span>
+            <span class="minmax-value" id="max-externo">--.-</span>
+          </div>
+          <div class="minmax-item">
+            <span class="minmax-label">Média</span>
+            <span class="minmax-value" id="avg-externo">--.-</span>
+          </div>
+        </div>
+        <div class="sparkline-container">
+          <svg class="sparkline" id="spark-externo" viewBox="0 0 200 40" preserveAspectRatio="none"></svg>
+        </div>
+        <div class="card-footer">
+          <div>
+            <div class="footer-label">Última Leitura</div>
+            <div class="footer-value" id="ts-externo">—</div>
+          </div>
+          <div>
+            <div class="footer-label">Total</div>
+            <div class="footer-value" id="count-externo">0 leituras</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Terminal log -->
+    <div class="terminal">
+      <div class="terminal-header">
+        <div class="terminal-dots">
+          <div class="terminal-dot dot-r"></div>
+          <div class="terminal-dot dot-y"></div>
+          <div class="terminal-dot dot-g"></div>
+        </div>
+        <span class="terminal-title">Event Stream Log</span>
+      </div>
+      <div class="terminal-body" id="log"></div>
+    </div>
+
+  </div>
+
+  <script>
+    // ── Constantes ────────────────────────────────────────────────
+    const SSE_URL = '/api/sensores/stream';
+    const HISTORY_SIZE = 20;   // pontos no sparkline
+    const MAX_LOG_LINES = 60;
+    const ALERT_THRESHOLD = { sala: 27, server: 52, externo: 38 };
+
+    // ── Estado da aplicação ────────────────────────────────────────
+    const state = {
+      sensores: {
+        sala: { valores: [], count: 0, sum: 0, min: Infinity, max: -Infinity },
+        server: { valores: [], count: 0, sum: 0, min: Infinity, max: -Infinity },
+        externo: { valores: [], count: 0, sum: 0, min: Infinity, max: -Infinity },
+      },
+      totalEventos: 0,
+      reconexoes: -1,   // -1 pois a primeira conexão incrementa
+      startTime: Date.now(),
+      source: null,
+    };
+
+    // ── Relógio ────────────────────────────────────────────────────
+    function tickClock() {
+      document.getElementById('clock').textContent =
+        new Date().toLocaleTimeString('pt-BR');
+    }
+    tickClock();
+    setInterval(tickClock, 1000);
+
+    // ── Taxa de eventos ────────────────────────────────────────────
+    setInterval(() => {
+      const mins = (Date.now() - state.startTime) / 60000;
+      const taxa = mins > 0 ? (state.totalEventos / mins).toFixed(1) : '—';
+      document.getElementById('stat-taxa').textContent = taxa;
+    }, 3000);
+
+    // ── Conexão SSE ────────────────────────────────────────────────
+    function conectar() {
+      state.reconexoes++;
+      document.getElementById('stat-reconexoes').textContent = state.reconexoes;
+      setBadge('connecting', 'CONECTANDO');
+      addLog('sys', 'Iniciando conexão SSE...');
+
+      if (state.source) {
+        state.source.close();
+      }
+
+      const source = new EventSource(SSE_URL);
+      state.source = source;
+
+      source.addEventListener('temperatura', (e) => {
+        try {
+          const dado = JSON.parse(e.data);
+          processarLeitura(dado);
+        } catch (err) {
+          addLog('sys', 'Erro ao parsear evento: ' + err.message);
+        }
+      });
+
+      source.onopen = () => {
+        setBadge('connected', 'CONECTADO');
+        addLog('sys', 'Conexão SSE estabelecida.');
+      };
+
+      source.onerror = () => {
+        if (source.readyState === EventSource.CLOSED) {
+          setBadge('error', 'ENCERRADO');
+          addLog('sys', 'Conexão encerrada pelo servidor.');
+        } else {
+          setBadge('connecting', 'RECONECTANDO');
+          addLog('sys', 'Falha de conexão — browser reconectará em 3s...');
+        }
+      };
+    }
+
+    // ── Processar leitura ──────────────────────────────────────────
+    function processarLeitura(dado) {
+      const { sensor, valor, timestamp } = dado;
+      const s = state.sensores[sensor];
+      if (!s) return;
+
+      // Atualizar histórico
+      s.valores.push(valor);
+      if (s.valores.length > HISTORY_SIZE) s.valores.shift();
+
+      // Estatísticas
+      s.count++;
+      s.sum += valor;
+      s.min = Math.min(s.min, valor);
+      s.max = Math.max(s.max, valor);
+
+      // Contadores globais
+      state.totalEventos++;
+      document.getElementById('stat-eventos').textContent = state.totalEventos;
+
+      const sensoresAtivos = Object.values(state.sensores).filter(x => x.count > 0).length;
+      document.getElementById('stat-sensores').textContent = sensoresAtivos;
+
+      // Atualizar DOM
+      atualizarCard(sensor, valor, timestamp, s);
+      verificarAlerta(sensor, valor);
+      addLog(sensor, `${sensor.padEnd(7)} ${valor.toFixed(1).padStart(5)}°C`);
+    }
+
+    // ── Atualizar card ─────────────────────────────────────────────
+    function atualizarCard(sensor, valor, timestamp, s) {
+      // Temperatura
+      document.getElementById(`temp-${sensor}`).textContent = valor.toFixed(1);
+
+      // Min / Max / Média
+      document.getElementById(`min-${sensor}`).textContent =
+        s.min === Infinity ? '--.-' : s.min.toFixed(1) + '°C';
+      document.getElementById(`max-${sensor}`).textContent =
+        s.max === -Infinity ? '--.-' : s.max.toFixed(1) + '°C';
+      document.getElementById(`avg-${sensor}`).textContent =
+        s.count > 0 ? (s.sum / s.count).toFixed(1) + '°C' : '--.-';
+
+      // Timestamp
+      document.getElementById(`ts-${sensor}`).textContent =
+        new Date(timestamp).toLocaleTimeString('pt-BR');
+
+      // Contagem
+      document.getElementById(`count-${sensor}`).textContent = `${s.count} leitura${s.count !== 1 ? 's' : ''}`;
+
+      // Sparkline
+      desenharSparkline(sensor, s.valores);
+
+      // Flash de update
+      const card = document.getElementById(`card-${sensor}`);
+      card.classList.remove('updating');
+      void card.offsetWidth; // reflow
+      card.classList.add('updating');
+      setTimeout(() => card.classList.remove('updating'), 400);
+    }
+
+    // ── Sparkline SVG ─────────────────────────────────────────────
+    function desenharSparkline(sensor, valores) {
+      const svg = document.getElementById(`spark-${sensor}`);
+      if (valores.length < 2) return;
+
+      const W = 200, H = 40, PAD = 2;
+      const min = Math.min(...valores) - 1;
+      const max = Math.max(...valores) + 1;
+      const range = max - min || 1;
+
+      const pts = valores.map((v, i) => {
+        const x = PAD + (i / (valores.length - 1)) * (W - PAD * 2);
+        const y = H - PAD - ((v - min) / range) * (H - PAD * 2);
+        return `${x},${y}`;
+      });
+
+      const colors = { sala: '#1a73e8', server: '#ea4335', externo: '#34a853' };
+      const color = colors[sensor] || '#1a73e8';
+
+      // Área preenchida
+      const areaPoints = `${PAD},${H} ${pts.join(' ')} ${W - PAD},${H}`;
+
+      svg.innerHTML = `
+      <defs>
+        <linearGradient id="sg-${sensor}" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stop-color="${color}" stop-opacity=".25"/>
+          <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <polygon points="${areaPoints}" fill="url(#sg-${sensor})"/>
+      <polyline points="${pts.join(' ')}"
+        fill="none" stroke="${color}" stroke-width="1.5"
+        stroke-linejoin="round" stroke-linecap="round"/>
+      <circle cx="${pts[pts.length - 1].split(',')[0]}" cy="${pts[pts.length - 1].split(',')[1]}"
+        r="3" fill="${color}"/>
+    `;
+    }
+
+    // ── Alerta de temperatura ──────────────────────────────────────
+    function verificarAlerta(sensor, valor) {
+      const limite = ALERT_THRESHOLD[sensor];
+      const bar = document.getElementById('alert-bar');
+      const msg = document.getElementById('alert-msg');
+
+      if (valor > limite) {
+        msg.textContent = `⚠ Sensor "${sensor}" — ${valor.toFixed(1)}°C acima do limite (${limite}°C)`;
+        bar.classList.add('visible');
+        setTimeout(() => bar.classList.remove('visible'), 5000);
+      }
+    }
+
+    // ── Badge de conexão ───────────────────────────────────────────
+    function setBadge(cls, text) {
+      const badge = document.getElementById('conn-badge');
+      badge.className = cls;
+      document.getElementById('conn-text').textContent = text;
+    }
+
+    // ── Log terminal ───────────────────────────────────────────────
+    function addLog(sensor, msg) {
+      const log = document.getElementById('log');
+      const time = new Date().toLocaleTimeString('pt-BR');
+
+      const tagMap = {
+        sala: ['tag-sala', 'SALA  '],
+        server: ['tag-server', 'SERVER'],
+        externo: ['tag-ext', 'EXT   '],
+        sys: ['tag-sys', 'SYS   '],
+      };
+
+      const [tagClass, label] = tagMap[sensor] || tagMap.sys;
+
+      const line = document.createElement('div');
+      line.className = 'log-line';
+      line.innerHTML =
+        `<span class="log-time">${time}</span>` +
+        `<span class="log-tag ${tagClass}">${label}</span>` +
+        `<span>${msg}</span>`;
+
+      log.appendChild(line);
+
+      // Limitar linhas
+      while (log.children.length > MAX_LOG_LINES) {
+        log.removeChild(log.firstChild);
+      }
+
+      log.scrollTop = log.scrollHeight;
+    }
+
+    // ── Boot ──────────────────────────────────────────────────────
+    conectar();
+  </script>
+</body>
+
+</html>

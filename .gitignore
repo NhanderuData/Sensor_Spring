@@ -1,0 +1,10 @@
+target/
+!.mvn/wrapper/maven-wrapper.jar
+/wp-cli.yml
+.DS_Store
+.idea/
+.vscode/
+*.imb
+*.class
+*.log
+*.tmp
