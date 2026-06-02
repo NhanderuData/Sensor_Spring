@@ -1,4 +1,4 @@
-# 🌡️ Sensor SSE Monitor
+# Sensor SSE Monitor
 
 **ADS1242 — Mensageria e Streams em Aplicações**
 Pontifícia Universidade Católica de Goiás — PUC Goiás
@@ -6,8 +6,7 @@ Pontifícia Universidade Católica de Goiás — PUC Goiás
 Aplicação Spring Boot que simula leituras de sensores de temperatura e as transmite em tempo real via **Server-Sent Events (SSE)** para um dashboard HTML.
 
 ---
-
-## 📋 Pré-requisitos
+## Pré-requisitos
 
 | Ferramenta | Versão Mínima |
 |---|---|
@@ -22,7 +21,7 @@ mvn -version
 
 ---
 
-## 🚀 Como Executar
+## Como Executar
 
 ### 1. Clone / extraia o projeto
 
@@ -47,7 +46,7 @@ http://localhost:8080
 
 ---
 
-## 📡 Endpoints da API
+## Endpoints da API
 
 | Método | Endpoint | Descrição |
 |---|---|---|
@@ -83,7 +82,7 @@ curl http://localhost:8080/api/sensores/status
 
 ---
 
-## 🏗️ Arquitetura do Projeto
+## Arquitetura do Projeto
 
 ```
 src/main/java/com/pucgoias/sensorsse/
@@ -114,7 +113,7 @@ src/main/resources/
 
 ---
 
-## ⚙️ Configurações (application.properties)
+## Configurações (application.properties)
 
 | Propriedade | Valor | Descrição |
 |---|---|---|
@@ -124,7 +123,7 @@ src/main/resources/
 
 ---
 
-## 🌡️ Sensores Simulados
+## Sensores Simulados
 
 | Sensor | ID | Faixa de Temperatura |
 |---|---|---|
@@ -137,7 +136,7 @@ Heartbeat SSE: **a cada 20 segundos** (mantém conexão em proxies).
 
 ---
 
-## 🔌 Protocolo SSE
+## Protocolo SSE
 
 Formato de cada evento emitido:
 
@@ -153,7 +152,7 @@ O browser reconecta automaticamente em caso de falha, enviando o header `Last-Ev
 
 ---
 
-## 🖥️ Funcionalidades do Dashboard
+## Funcionalidades do Dashboard
 
 - **3 cards** — um por sensor, com temperatura atual, mín/máx/média e sparkline
 - **Indicador de conexão** — CONECTANDO / CONECTADO / RECONECTANDO / ENCERRADO
@@ -163,7 +162,7 @@ O browser reconecta automaticamente em caso de falha, enviando o header `Last-Ev
 
 ---
 
-## 📚 Referências
+## Referências
 
 - [W3C — Server-Sent Events Living Standard](https://www.w3.org/TR/eventsource/)
 - [MDN — Using server-sent events](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events)
